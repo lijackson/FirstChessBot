@@ -1,14 +1,13 @@
 CC = g++
-FLAGS = -I
-DEPS = Runner.h
 
-ODIR = obj
+OBJECTS = Runner.cpp
 
-_OBJ = hellomake.o hellofunc.o 
-OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
+OBJECTS_OUT = Runner.o
 
-$(ODIR)/%.o: %.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+CFLAGS = -Wall
 
-hellomake: Runner.cpp
-	$(CC) -o hellomake Runner.cpp -I.
+INCLUDES = -lsfml-graphics -lsfml-window -lsfml-system
+
+all: $(OBJECTS)
+	$(CC) -c $(OBJECTS)
+	$(CC) $(OBJECTS_OUT) -o runner $(INCLUDES)
