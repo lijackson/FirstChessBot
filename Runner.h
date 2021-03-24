@@ -1,10 +1,12 @@
 #include <iostream>
 #include <vector>
+#include <map>
+
+#include <chrono>
+#include <thread>
 
 #include <SFML/Graphics.hpp>
 
-class Piece;
-
-void draw(sf::RenderWindow &window, sf::Sprite background, std::vector<Piece> pieces);
+class Renderer;
 
 int main();
