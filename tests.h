@@ -1,8 +1,11 @@
 #ifndef TESTS_H
 #define TESTS_H
 
-#include "Runner.h"
+#include "Renderer.h"
 #include "GameBoard.h"
+
+#include <chrono>
+#include <thread>
 
 int main();
 
