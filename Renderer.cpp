@@ -79,7 +79,7 @@ void Renderer::draw_image(char type, int x, int y) {
     draw(s);
 }
 
-void Renderer::draw_board(char board[8][8]) {
+void Renderer::draw_board(GameBoard gb) {
     sf::Event event;
     while (pollEvent(event))
     {
@@ -98,13 +98,23 @@ void Renderer::draw_board(char board[8][8]) {
     bg.setScale(scr_w / 1000.0, scr_h / 1000.0);
     draw(bg);
     
-    for (int r = 0; r < 8; r++) {
-        for (int c = 0; c < 8; c++) {
-            if (board[r][c] != ' ') draw_image(board[r][c], c, r);
+    // for (int r = 0; r < 8; r++) {
+    //     for (int c = 0; c < 8; c++) {
+    //         if (gb.state[r][c] != ' ') draw_image(gb.state[r][c], c, r);
+    //     }
+    // }
+
+    // Test drawing
+    char pieces[12] = {'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k'};
+
+    for (int i = 0; i < 12; i++) {
+        for (Pos p : gb.positions_of[pieces[i]]) {
+            draw_image(pieces[i], p.col, p.row);
         }
     }
     
     // End drawing
+    
     display();
 }
 

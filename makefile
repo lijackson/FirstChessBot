@@ -1,10 +1,10 @@
 CC = g++
 
-OBJECTS = Runner.cpp GameBoard.cpp
-OBJECTS_OUT = Runner.o GameBoard.o
+OBJECTS = Renderer.cpp GameBoard.cpp ChessAI.cpp
+OBJECTS_OUT = Renderer.o GameBoard.o ChessAI.o
 
-TEST_OBJECTS = tests.cpp Runner.cpp GameBoard.cpp
-TEST_OBJECTS_OUT = tests.o Runner.o GameBoard.o
+TEST_OBJECTS = tests.cpp Renderer.cpp GameBoard.cpp ChessAI.cpp debugstuff.cpp
+TEST_OBJECTS_OUT = tests.o Renderer.o GameBoard.o ChessAI.o debugstuff.o
 
 CFLAGS = -Wall
 

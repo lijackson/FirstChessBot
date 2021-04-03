@@ -3,6 +3,7 @@
 
 #include "Renderer.h"
 #include "GameBoard.h"
+#include "ChessAI.h"
 
 #include <chrono>
 #include <thread>

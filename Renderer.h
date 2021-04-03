@@ -7,6 +7,8 @@
 
 #include <SFML/Graphics.hpp>
 
+#include "GameBoard.h"
+
 class Renderer : protected sf::RenderWindow{
 
     private:
@@ -23,7 +25,7 @@ class Renderer : protected sf::RenderWindow{
     Renderer(int p_w, int p_h);
 
     // This draws the board, should be called every frame
-    void draw_board(char board[8][8]);
+    void draw_board(GameBoard gb);
 
     // This is a getter function to determine if the window is still open
     bool is_open();

@@ -5,6 +5,7 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <list>
 #include <map>
 
 char col_to_sqr(int col);
@@ -24,6 +25,9 @@ struct Pos {
     Pos operator+(const Pos& p_rhs) {
         return Pos(row + p_rhs.row, col + p_rhs.col);
     }
+    bool operator==(const Pos& p_rhs) {
+        return row == p_rhs.row && col == p_rhs.col;
+    }
 };
 
 // This stores the information for a move
@@ -31,28 +35,34 @@ struct Move {
     char move_type; // 'p' for promotion, 'c' for castle, 'e' for an en passant capture, 'm' for a regular move
     bool castle_short = 0;
     char promotion = ' ';
+    bool is_capture = 0;
     Pos from;
     Pos to;
     Move() {}
-    Move(Pos p_from, Pos p_to) {
+    Move(Pos p_from, Pos p_to, bool cap) {
         move_type = 'm';
         from = p_from;
         to = p_to;
+        is_capture = cap;
+
     }
     Move(char p_move_type, Pos p_from, Pos p_to) {
         move_type = p_move_type; // made to be used for move_type = 'e', but this is a little bit more dynamic
         from = p_from;
         to = p_to;
+        is_capture = 1;
     }
-    Move(Pos p_from, Pos p_to, char piece) {
+    Move(Pos p_from, Pos p_to, char piece, bool cap) {
         move_type = 'p';
         from = p_from;
         to = p_to;
         promotion = piece;
+        is_capture = cap;
     }
     Move(bool kingside) {
         move_type = 'c';
         castle_short = kingside;
+        is_capture = 0;
     }
 };
 
@@ -101,13 +111,14 @@ class GameBoard {
     char state[8][8] = {};
 
     // Provides bidirectional mapping from piece -> positions because that is faster in some algorithms
-    std::map<char, std::vector<Pos>> positions_of;
+    std::map<char, std::list<Pos>> positions_of;
 
     // Storing other information about the game
     bool castling[4] = {1, 1, 1, 1}; // {K, Q, k, q} aka {white kingside, white queenside, black kingside, black queenside}
     int en_passant = -1; // 16 potential en_passant positions: {20: a6, 21: b6, ..., 57: h3}, and -1 is none
     bool check[2] = {0, 0};
     bool white_turn = 1;
+    bool just_captured = 0;
     int half_move_clock = 0;
     int moves_made = 0;
 
@@ -120,8 +131,11 @@ class GameBoard {
     // Unmakes a move with the given UnmakeData
     void unmake_move(UnmakeData unmaker);
 
-    // Gets a complete list of all legal moves for a player
+    // Gets a complete list of all pseudo-legal moves for a player
     std::vector<Move> all_moves();
+
+    // Gets a complete list of all actually legal moves for a player
+    std::vector<Move> legal_moves();
 
     // Get the valid moves of the piece at a position
     std::vector<Move> valid_moves(Pos pos);

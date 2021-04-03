@@ -9,6 +9,8 @@ char row_to_sqr(int row) {
     return rows[7-rows[1]];
 }
 
+#include "debugstuff.h"
+
 int sqr_to_col(char col) {
     return (int)(col - 'a');
 }
@@ -22,7 +24,7 @@ char pieces[12] = {'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k'};
 GameBoard::GameBoard(std::string FEN) {
 
     for (int i = 0; i < 12; i++) {
-        positions_of[pieces[i]] = std::vector<Pos>();
+        positions_of[pieces[i]] = std::list<Pos>();
     }
 
     // Stores what step of the filling process we are on so one loop through the chars can read all the information
@@ -101,7 +103,7 @@ UnmakeData GameBoard::make_coordinate_move(Pos from_pos, Pos to_pos) {
     // Create a reference to the relevant information to unmake the move easily if necessary
     UnmakeData unmaker;
 
-    SqrData to(to_pos, get_piece((to_pos)));
+    SqrData to(to_pos, get_piece(to_pos));
     unmaker.squares.push_back(to);
 
     SqrData from(from_pos, get_piece(from_pos));
@@ -111,26 +113,35 @@ UnmakeData GameBoard::make_coordinate_move(Pos from_pos, Pos to_pos) {
     unmaker.prev_en_passant = en_passant;
 
     // Update relevant board state information
-    char type = tolower(get_piece(from_pos));
+    char from_type = tolower(get_piece(from_pos));
+    char to_type = tolower(get_piece(to_pos));
 
-    if (type == 'k' || (type == 'r' && from_pos.col == 0))
+    if (from_type == 'k' || (from_type == 'r' && from_pos.col == 0))
         castling[!white_turn * 2] = 0;
-    if (type == 'k' || (type == 'r' && from_pos.col == 7))
+    if (from_type == 'k' || (from_type == 'r' && from_pos.col == 7))
         castling[!white_turn * 2 + 1] = 0;
 
-    if (tolower(get_piece(to_pos)) == 'r' && to_pos.col == 0)
+    if (to_type == 'r' && to_pos.col == 0)
         castling[white_turn * 2] = 0;
-    if (tolower(get_piece(to_pos)) == 'r' && to_pos.col == 7)
+    if (to_type == 'r' && to_pos.col == 7)
         castling[white_turn * 2 + 1] = 0;
 
+    just_captured = to_type != ' ';
+    if (just_captured) 
+        positions_of[get_piece(to_pos)].remove(to_pos);
     
     en_passant = -1;
-    if (type == 'p' && abs(from_pos.row - to_pos.row) == 2)
+    if (from_type == 'p' && abs(from_pos.row - to_pos.row) == 2)
         en_passant = from_pos.col + from_pos.row * 10;
 
     white_turn = !white_turn;
 
     // Make the move on the board
+    positions_of[get_piece(from_pos)].remove(from_pos);
+    positions_of[get_piece(from_pos)].push_back(to_pos);
+
+    if (get_piece(to_pos) != ' ') positions_of[get_piece(to_pos)].remove(to_pos);
+
     state[to_pos.row][to_pos.col] = state[from_pos.row][from_pos.col];
     state[from_pos.row][from_pos.col] = ' ';
 
@@ -156,10 +167,14 @@ UnmakeData GameBoard::make_en_passant_move(Pos from_pos, Pos to_pos) {
 
     // Update relevant board state information
     en_passant = -1;
-
+    just_captured = 1;
     white_turn = !white_turn;
 
     // Make the move on the board
+    positions_of[state[from_pos.row][to_pos.col]].remove(Pos(from_pos.row, to_pos.col));
+    positions_of[get_piece(from_pos)].remove(from_pos);
+    positions_of[get_piece(from_pos)].push_back(to_pos);
+
     state[to_pos.row][to_pos.col] = state[from_pos.row][from_pos.col];
     state[from_pos.row][from_pos.col] = ' ';
     state[from_pos.row][to_pos.col] = ' ';
@@ -200,6 +215,12 @@ UnmakeData GameBoard::make_castle_move(bool castle_short) {
     en_passant = -1;
 
     // Make the move on the board
+    positions_of[state[row][4]].remove(Pos(row, 4));
+    positions_of[state[row][4]].push_back(Pos(row, 2 + castle_short * 4));
+
+    positions_of[state[row][castle_short * 7]].remove(Pos(row, castle_short * 7));
+    positions_of[state[row][castle_short * 7]].push_back(Pos(row, 3 + castle_short * 2));
+
     state[row][2 + castle_short * 4] = state[row][4];
     state[row][3 + castle_short * 2] = state[row][castle_short * 7];
     state[row][4] = ' ';
@@ -213,7 +234,7 @@ UnmakeData GameBoard::make_promotion_move(Pos from_pos, Pos to_pos, char to_type
     // Create a reference to the relevant information to unmake the move easily if necessary
     UnmakeData unmaker;
 
-    SqrData to(to_pos, ' ');
+    SqrData to(to_pos, get_piece(to_pos));
     unmaker.squares.push_back(to);
 
     SqrData from(from_pos, get_piece(from_pos));
@@ -227,6 +248,11 @@ UnmakeData GameBoard::make_promotion_move(Pos from_pos, Pos to_pos, char to_type
     en_passant = -1;
 
     // Make the move on the board
+    if (get_piece(to_pos) != ' ') positions_of[get_piece(to_pos)].remove(to_pos);
+
+    positions_of[get_piece(from_pos)].remove(from_pos);
+    positions_of[to_type].push_back(to_pos);
+
     state[to_pos.row][to_pos.col] = to_type;
     state[from_pos.row][from_pos.col] = ' ';
 
@@ -235,6 +261,8 @@ UnmakeData GameBoard::make_promotion_move(Pos from_pos, Pos to_pos, char to_type
 
 void GameBoard::unmake_move(UnmakeData unmaker) {
     for (SqrData sqr : unmaker.squares) {
+        if (state[sqr.sqr.row][sqr.sqr.col] != ' ') positions_of[state[sqr.sqr.row][sqr.sqr.col]].remove(sqr.sqr);
+        if (sqr.piece != ' ') positions_of[sqr.piece].push_back(Pos(sqr.sqr.row, sqr.sqr.col));
         state[sqr.sqr.row][sqr.sqr.col] = sqr.piece;
     }
     for (int i = 0; i < 4; i++) {castling[i] = unmaker.prev_castling[i];};
@@ -246,12 +274,31 @@ std::vector<Move> GameBoard::all_moves() {
     std::vector<Move> moves;
     for (int i = 6 * !white_turn; i < 6 + 6 * !white_turn; i++) {
         for (Pos p : positions_of[pieces[i]]) {
-            for (Move m : valid_moves(p)) {
+            std::vector<Move> moves_to_add = valid_moves(p);
+            for (Move m : moves_to_add) {
                 moves.push_back(m);
             }
         }
     }
     return moves;
+}
+
+std::vector<Move> GameBoard::legal_moves() {
+    std::vector<Move> pseudo_legal_moves = all_moves();
+    std::vector<Move> legal_list;
+    for (Move m : pseudo_legal_moves) {
+        UnmakeData unmaker = make_move(m);
+        bool legal = true;
+        for (Move response : all_moves()) {
+            if (response.to == positions_of['K' + 32*white_turn].front()) {
+                legal = false;
+                break;
+            }
+        }
+        unmake_move(unmaker);
+        if (legal) legal_list.push_back(m);
+    }
+    return legal_list;
 }
 
 std::vector<Move> GameBoard::valid_moves(Pos pos) {
@@ -283,49 +330,44 @@ std::vector<Move> GameBoard::pawn_moves(Pos pos) {
     if (state[pos.row + dir][pos.col] == ' ') {
         if (pos.row + dir == !white_turn * 7) {
             // Promotion
-            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col), (char)('q' + 26*white_turn)));
-            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col), (char)('n' + 26*white_turn)));
-            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col), (char)('r' + 26*white_turn)));
-            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col), (char)('b' + 26*white_turn)));
+            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col), (char)('q' - 32*white_turn), 0));
+            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col), (char)('n' - 32*white_turn), 0));
         } else {
-            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col)));
+            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col), 0));
             if (pos.row == 1 + 5*white_turn && state[pos.row + 2*dir][pos.col] == ' ') {
-                moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + 2*dir, pos.col)));
+                moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + 2*dir, pos.col), 0));
             }
         }
     }
 
     // Capturing
     char left_cap = state[pos.row + dir][pos.col - 1];
-    if (opposite_color(get_piece(pos), left_cap)) {
+    if (is_on_board(Pos(pos.row + dir, pos.col - 1)) && opposite_color(get_piece(pos), left_cap)) {
         if (pos.row + dir == !white_turn * 7) {
             // Promotion
-            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col - 1), (char)('q' + 26*white_turn)));
-            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col - 1), (char)('r' + 26*white_turn)));
-            moves.push_back(Move(Pos(pos.row, pos. col), Pos(pos.row + dir, pos.col - 1), (char)('n' + 26*white_turn)));
-            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col - 1), (char)('b' + 26*white_turn)));
+            moves.push_back(Move(pos, Pos(pos.row + dir, pos.col - 1), (char)('q' - 32*white_turn), 1));
+            moves.push_back(Move(pos, Pos(pos.row + dir, pos.col - 1), (char)('n' - 32*white_turn), 1));
         } else {
-            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col - 1)));
+            moves.push_back(Move(pos, Pos(pos.row + dir, pos.col - 1), 1));
         }
     }
+
     char right_cap = state[pos.row + dir][pos.col + 1];
-    if (opposite_color(get_piece(pos), right_cap)) {
+    if (is_on_board(Pos(pos.row + dir, pos.col + 1)) && opposite_color(get_piece(pos), right_cap)) {
         if (pos.row + dir == !white_turn * 7) {
             // Promotion
-            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col - 1), (char)('q' + 26*white_turn)));
-            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col - 1), (char)('r' + 26*white_turn)));
-            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col - 1), (char)('n' + 26*white_turn)));
-            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col - 1), (char)('b' + 26*white_turn)));
+            moves.push_back(Move(pos, Pos(pos.row + dir, pos.col + 1), (char)('q' - 32*white_turn), 1));
+            moves.push_back(Move(pos, Pos(pos.row + dir, pos.col + 1), (char)('n' - 32*white_turn), 1));
         } else {
-            moves.push_back(Move(Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col + 1)));
+            moves.push_back(Move(pos, Pos(pos.row + dir, pos.col + 1), 1));
         }
     }
 
     // en passant capturing
     if (en_passant == (pos.row + dir) * 10 + (pos.col + 1))
-        moves.push_back(Move('e', Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col + 1)));
+        moves.push_back(Move('e', pos, Pos(pos.row + dir, pos.col + 1)));
     if (en_passant == (pos.row + dir) * 10 + (pos.col - 1))
-        moves.push_back(Move('e', Pos(pos.row, pos.col), Pos(pos.row + dir, pos.col - 1)));
+        moves.push_back(Move('e', pos, Pos(pos.row + dir, pos.col - 1)));
 
     return moves;
 
@@ -340,7 +382,7 @@ std::vector<Move> GameBoard::knight_moves(Pos pos) {
         Pos new_pos = offset + pos;
         // Checks if the move is on the board, and then checks if it isn't already occupied by a piece of the same color
         if (is_on_board(new_pos) && !same_color(get_piece(new_pos), get_piece(pos))) {
-            moves.push_back(Move(pos, new_pos));
+            moves.push_back(Move(pos, new_pos, get_piece(new_pos) != ' '));
         }
     }
 
@@ -355,11 +397,12 @@ std::vector<Move> GameBoard::bishop_moves(Pos pos) {
     for (Pos offset : bishop_offsets) {
         Pos new_pos = pos + offset;
         while (is_on_board(new_pos)) {
-            if (same_color(get_piece(pos), get_piece(new_pos))) break;
+            char to_sqr_contents = get_piece(new_pos);
+            if (same_color(get_piece(pos), to_sqr_contents)) break;
 
-            moves.push_back(Move(pos, new_pos));
+            moves.push_back(Move(pos, new_pos, to_sqr_contents != ' '));
 
-            if (opposite_color(get_piece(pos), get_piece(new_pos))) break;
+            if (opposite_color(get_piece(pos), to_sqr_contents)) break;
 
             new_pos = new_pos + offset;
         }
@@ -376,11 +419,13 @@ std::vector<Move> GameBoard::rook_moves(Pos pos) {
     for (Pos offset : rook_offsets) {
         Pos new_pos = pos + offset;
         while (is_on_board(new_pos)) {
-            if (same_color(get_piece(pos), get_piece(new_pos))) break;
+            char to_sqr_contents = get_piece(new_pos);
 
-            moves.push_back(Move(pos, new_pos));
+            if (same_color(get_piece(pos), to_sqr_contents)) break;
 
-            if (opposite_color(get_piece(pos), get_piece(new_pos))) break;
+            moves.push_back(Move(pos, new_pos, to_sqr_contents != ' '));
+
+            if (opposite_color(get_piece(pos), to_sqr_contents)) break;
 
             new_pos = new_pos + offset;
         }
@@ -406,7 +451,7 @@ std::vector<Move> GameBoard::king_moves(Pos pos) {
     for (Pos offset : king_offsets) {
         Pos new_pos = pos + offset;
         if (is_on_board(new_pos) && !same_color(get_piece(pos), get_piece(new_pos)))
-            moves.push_back(Move(pos, new_pos));
+            moves.push_back(Move(pos, new_pos, get_piece(new_pos) != ' '));
     }
 
     if (castling[2 - 2 * white_turn] && state[pos.row][5] == ' ' && state[pos.row][6] == ' ') {
