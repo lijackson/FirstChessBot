@@ -31,7 +31,7 @@ int main()
     Move m = ai.best_move(gb, 4);
     UnmakeData unmaker = gb.make_move(m);
     r.draw_board(gb);
-    std::this_thread::sleep_for(std::chrono::milliseconds(TESTING_DELAY_MS));
+    std::this_thread::sleep_for(std::chrono::milliseconds(4000));
 
     return 0;
 }

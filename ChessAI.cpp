@@ -24,8 +24,11 @@ Move ChessAI::best_move(GameBoard &gb, int depth) {
         if ((!gb.white_turn && score > best_score) || (gb.white_turn && score < best_score)) {
             best = moves[i];
             best_score = score;
-            // Almost forgot alpha-beta pruning here, the highest level and therefore the most important place
-            if (gb.white_turn) beta = score; else alpha = score;
+            // AB pruning
+            if (gb.white_turn)
+                beta = score;
+            else
+                alpha = score;
         }
         gb.unmake_move(unmaker);
     }
@@ -49,30 +52,40 @@ int ChessAI::minimax(int alpha, int beta, GameBoard &gb, int depth) {
         for (Move m : moves) {
             // Make move
             UnmakeData unmaker = gb.make_move(m);
+
             // Finding a prescore (if the king has been taken, theres no need to continue checking moves)
             int current_score = score(gb);
-            if (abs(current_score) != 100000) current_score = minimax(alpha, beta, gb, depth - 1);
+            if (abs(current_score) != 100000)
+                current_score = minimax(alpha, beta, gb, depth - 1);
+
             // Recursive minimax
             best_score = std::max(best_score, current_score);
             gb.unmake_move(unmaker);
+
             // Alpha beta pruning implementation
             alpha = std::max(alpha, best_score);
-            if (alpha >= beta || best_score == 100000) break;
+            if (alpha >= beta || best_score == 100000)
+                break;
         }
     } else {
         best_score = INT32_MAX;
         for (Move m : moves) {
             // Make move
             UnmakeData unmaker = gb.make_move(m);
+
             // Finding a prescore (if the king has been taken, theres no need to continue checking moves)
             int current_score = score(gb);
-            if (abs(current_score) != 100000) current_score = minimax(alpha, beta, gb, depth - 1);
+            if (abs(current_score) != 100000)
+                current_score = minimax(alpha, beta, gb, depth - 1);
+
             // Recursive minimax
             best_score = std::min(best_score, minimax(alpha, beta, gb, depth - 1));
             gb.unmake_move(unmaker);
+
             // Alpha beta pruning implementation
             beta = std::min(beta, best_score);
-            if (alpha >= beta || best_score == -100000) break;
+            if (alpha >= beta || best_score == -100000)
+                break;
         }
     }
 
@@ -80,11 +93,18 @@ int ChessAI::minimax(int alpha, int beta, GameBoard &gb, int depth) {
 }
 
 int val(char p) {
-    if (tolower(p) == 'q') return 900;
-    if (tolower(p) == 'r') return 500;
-    if (tolower(p) == 'b') return 300;
-    if (tolower(p) == 'n') return 300;
-    if (tolower(p) == 'p') return 100;
+    switch (tolower(p)) {
+        case 'q':
+            return 900;
+        case 'r':
+            return 500;
+        case 'b':
+            return 310;
+        case 'n':
+            return 300;
+        case 'p':
+            return 100;
+    }
     return 0;
 }
 
@@ -117,6 +137,24 @@ int ChessAI::score(GameBoard &gb) {
     // Value of queen
     s += gb.positions_of['Q'].size() * queen_weight;
     s -= gb.positions_of['q'].size() * queen_weight;
+
+    // Advancing pawns is good
+    for (auto p : gb.positions_of['P'])
+        s += (p.row);
+    for (auto p : gb.positions_of['p'])
+        s -= (8-p.row);
+
+    // Being on the edge is bad for N
+    for (Pos p : gb.positions_of['N'])
+        s -= abs(p.row*2 - 7) + abs(p.col*2 - 7);
+    for (Pos p : gb.positions_of['n'])
+        s += abs(p.row*2 - 7) + abs(p.col*2 - 7);
+    
+    // Being on the edge is bad for B
+    for (Pos p : gb.positions_of['B'])
+        s -= (abs(p.row*2 - 7) + abs(p.col*2 - 7)) / 2;
+    for (Pos p : gb.positions_of['b'])
+        s += (abs(p.row*2 - 7) + abs(p.col*2 - 7)) / 2;
 
     return s;
 }

@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <cmath>
 #include "GameBoard.h"
 
 struct MovePriority {

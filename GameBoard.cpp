@@ -87,15 +87,16 @@ GameBoard::GameBoard(std::string FEN) {
 };
 
 UnmakeData GameBoard::make_move(Move move) {
-    if (move.move_type == 'c') {
-        return make_castle_move(move.castle_short);
-    } else if (move.move_type == 'p') {
-        return make_promotion_move(move.from, move.to, move.promotion);
-    } else if (move.move_type == 'e') {
-        return make_en_passant_move(move.from, move.to);
+    switch (move.move_type) {
+        case 'c':
+            return make_castle_move(move.castle_short);
+        case 'p':
+            return make_promotion_move(move.from, move.to, move.promotion);
+        case 'e':
+            return make_en_passant_move(move.from, move.to);
+        default:
+            return make_coordinate_move(move.from, move.to);
     }
-    // The default is to just treat the move like a coordinate move
-    return make_coordinate_move(move.from, move.to);
 }
 
 UnmakeData GameBoard::make_coordinate_move(Pos from_pos, Pos to_pos) {
